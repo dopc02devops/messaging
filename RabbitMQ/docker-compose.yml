@@ -13,13 +13,20 @@ services:
       - RABBITMQ_DEFAULT_USER=user
       - RABBITMQ_DEFAULT_PASS=password
       - RABBITMQ_DEFAULT_VHOST=/
-      - RABBITMQ_LISTENER_TCP_BACKLOG=128  # Optional: Increase the connection limit
-      - RABBITMQ_NODENAME=rabbit@rabbitmq  # Ensures proper node name resolution in Docker network
-      - RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS=-setcookie secret_cookie  # Optional: For setting up a secure cookie
+      - RABBITMQ_LISTENER_TCP_BACKLOG=128  # Increase connection limit
+      - RABBITMQ_NODENAME=rabbit@rabbitmq
+      - RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS=-setcookie secret_cookie
     volumes:
-      - rabbitmq-logs:/var/lib/rabbitmq  # Mount RabbitMQ logs directory
-      - ./rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf  # Mount custom RabbitMQ config
-    user: root  # Ensure RabbitMQ runs as root
+      - rabbitmq-logs:/var/lib/rabbitmq
+      - ./rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
+      - ./.erlang.cookie:/var/lib/rabbitmq/.erlang.cookie
+
+    user: root
+    healthcheck: 
+      test: ["CMD", "nc", "-z", "localhost", "5672"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     deploy:
       resources:
         limits:
@@ -29,42 +36,67 @@ services:
   sender:
     build:
       context: .
-      dockerfile: sender/Dockerfile
-    container_name: sender
+      dockerfile: producer/Dockerfile
+    container_name: producer
     depends_on:
-      - rabbitmq
+      rabbitmq:
+        condition: service_healthy  # Wait for RabbitMQ to be ready
     networks:
       - my-network
     ports:
-      - "6000:5000"  # Expose the Flask app at port 6000
+      - "6000:5000"  # Flask app exposed on port 6000
     environment:
-      - RABBITMQ_HOST=rabbitmq   # Set RabbitMQ host explicitly for sender
+      - RABBITMQ_HOST=rabbitmq
       - RABBITMQ_USER=user
       - RABBITMQ_PASSWORD=password
     volumes:
-      - sender-app:/app  # Mount sender app directory
+      - sender-app:/app
+    restart: always
 
-  consumer:
+  finance_consumer:
     build:
       context: .
-      dockerfile: consumer/Dockerfile
-    container_name: consumer
+      dockerfile: consumers/Finance/Dockerfile
+    container_name: finance_consumer
     depends_on:
-      - rabbitmq
+      rabbitmq:
+        condition: service_healthy
     networks:
       - my-network
     environment:
-      - RABBITMQ_HOST=rabbitmq   # Set RabbitMQ host explicitly for consumer
+      - RABBITMQ_HOST=rabbitmq
       - RABBITMQ_USER=user
       - RABBITMQ_PASSWORD=password
+      - QUEUE_NAME=finance_queue  # Finance queue binding
     volumes:
-      - consumer-app:/app  # Mount consumer app directory
+      - finance-app:/app
+    restart: always
+
+  hr_consumer:
+    build:
+      context: .
+      dockerfile: consumers/Hr/Dockerfile
+    container_name: hr_consumer
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - my-network
+    environment:
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_USER=user
+      - RABBITMQ_PASSWORD=password
+      - QUEUE_NAME=hr_queue  # HR queue binding
+    volumes:
+      - hr-app:/app
+    restart: always
 
 networks:
   my-network:
     driver: bridge
 
 volumes:
-  rabbitmq-logs:     # External volume for RabbitMQ logs
-  sender-app:        # Volume for sender app files
-  consumer-app:      # Volume for consumer app files
+  rabbitmq-logs:
+  sender-app:
+  finance-app:
+  hr-app:
