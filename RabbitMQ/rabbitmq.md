@@ -12,3 +12,6 @@ curl --location 'http://localhost:6000/send' \
     "queue_type": "finance"  
 }
 '
+
+
+docker-compose up --build -d
