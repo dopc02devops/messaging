@@ -13,10 +13,12 @@ logger = logging.getLogger()
 def connect_rabbitmq():
     while True:
         try:
+            # Set up connection parameters
             connection_params = pika.ConnectionParameters(
                 host='rabbitmq',  # RabbitMQ service name from docker-compose.yml
                 credentials=pika.PlainCredentials('user', 'password')  # RabbitMQ credentials
             )
+            # Try to establish the connection
             connection = pika.BlockingConnection(connection_params)
             logger.info("Connected to RabbitMQ successfully.")
             return connection
@@ -28,8 +30,8 @@ def connect_rabbitmq():
 def callback(ch, method, properties, body):
     try:
         logger.info(f"Received message: {body.decode()}")
-        # Process the message here
-        # Acknowledge the message
+        # Here you can process the message as needed
+        # Acknowledge the message after processing
         ch.basic_ack(delivery_tag=method.delivery_tag)
         logger.info(f"Message acknowledged.")
     except Exception as e:
@@ -38,24 +40,32 @@ def callback(ch, method, properties, body):
 
 # Main function to start consuming messages
 def start_consuming():
-    # Connect to RabbitMQ
-    connection = connect_rabbitmq()
-    channel = connection.channel()
-
-    # Declare a queue
-    channel.queue_declare(queue='task_queue', durable=True)
-    logger.info("Queue 'task_queue' declared.")
-
-    # Start consuming messages
-    channel.basic_consume(queue='task_queue', on_message_callback=callback)
-
+    connection = None
+    channel = None
     try:
+        # Connect to RabbitMQ
+        connection = connect_rabbitmq()
+        channel = connection.channel()
+
+        # Declare a queue (it must exist before consuming messages)
+        channel.queue_declare(queue='task_queue', durable=True)
+        logger.info("Queue 'task_queue' declared.")
+
+        # Start consuming messages from the queue with a callback
+        channel.basic_consume(queue='task_queue', on_message_callback=callback)
+
         logger.info("Waiting for messages...")
-        channel.start_consuming()
+        channel.start_consuming()  # Block and wait for messages
     except KeyboardInterrupt:
         logger.info("Consumer interrupted by user. Closing connection...")
+    except Exception as e:
+        logger.error(f"Error in consuming messages: {e}")
     finally:
-        if connection.is_open:
+        # Gracefully close the connection and channel when done
+        if channel and not channel.is_closed:
+            channel.close()
+            logger.info("RabbitMQ channel closed.")
+        if connection and not connection.is_closed:
             connection.close()
             logger.info("RabbitMQ connection closed.")
 

@@ -18,6 +18,7 @@ services:
       - RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS=-setcookie secret_cookie  # Optional: For setting up a secure cookie
     volumes:
       - rabbitmq-logs:/var/lib/rabbitmq  # Mount RabbitMQ logs directory
+      - ./rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf  # Mount custom RabbitMQ config
     user: root  # Ensure RabbitMQ runs as root
     deploy:
       resources:
