@@ -13,7 +13,7 @@ def connect_rabbitmq():
     while True:
         try:
             connection_params = pika.ConnectionParameters(
-                host='rabbitmq',  
+                host='rabbitmq1',  
                 credentials=pika.PlainCredentials('user', 'password')  
             )
             connection = pika.BlockingConnection(connection_params)

@@ -21,7 +21,7 @@ console_handler.setFormatter(formatter)
 # Add console handler to the logger
 logger.addHandler(console_handler)
 
-RABBITMQ_HOST = "rabbitmq"
+RABBITMQ_HOST = "rabbitmq1"
 RABBITMQ_USER = "user"
 RABBITMQ_PASSWORD = "password"
 EXCHANGE_NAME = "direct_logs"  # Direct exchange for routing messages

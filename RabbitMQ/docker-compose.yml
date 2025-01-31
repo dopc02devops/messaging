@@ -1,9 +1,9 @@
 version: '3.8'
 
 services:
-  rabbitmq:
+  rabbitmq1:
     image: rabbitmq:3-management-alpine
-    container_name: rabbitmq
+    container_name: rabbitmq1
     networks:
       - my-network
     ports:
@@ -14,7 +14,7 @@ services:
       - RABBITMQ_DEFAULT_PASS=password
       - RABBITMQ_DEFAULT_VHOST=/
       - RABBITMQ_LISTENER_TCP_BACKLOG=128  # Increase connection limit
-      - RABBITMQ_NODENAME=rabbit@rabbitmq
+      - RABBITMQ_NODENAME=rabbit@rabbitmq1
       - RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS=-setcookie secret_cookie
       - RABBITMQ_ENABLED_PLUGINS_FILE=/etc/rabbitmq/enabled_plugins  # Set the plugins file
     volumes:
@@ -22,8 +22,79 @@ services:
       - ./rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
       - ./.erlang.cookie:/var/lib/rabbitmq/.erlang.cookie
       - ./enabled_plugins:/etc/rabbitmq/enabled_plugins  # Mount the plugins file
-
     user: root
+    healthcheck: 
+      test: ["CMD", "nc", "-z", "localhost", "5672"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+
+  rabbitmq2:
+    image: rabbitmq:3-management-alpine
+    container_name: rabbitmq2
+    networks:
+      - my-network
+    ports:
+      - "5673:5672"       # AMQP protocol
+      - "15673:15672"     # Management UI (for monitoring)
+    environment:
+      - RABBITMQ_DEFAULT_USER=user
+      - RABBITMQ_DEFAULT_PASS=password
+      - RABBITMQ_DEFAULT_VHOST=/
+      - RABBITMQ_LISTENER_TCP_BACKLOG=128  # Increase connection limit
+      - RABBITMQ_NODENAME=rabbit@rabbitmq2
+      - RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS=-setcookie secret_cookie
+      - RABBITMQ_ENABLED_PLUGINS_FILE=/etc/rabbitmq/enabled_plugins  # Set the plugins file
+      - RABBITMQ_CLUSTER_NODES=rabbit@rabbitmq1
+    volumes:
+      - rabbitmq-logs:/var/lib/rabbitmq
+      - ./rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
+      - ./.erlang.cookie:/var/lib/rabbitmq/.erlang.cookie
+      - ./enabled_plugins:/etc/rabbitmq/enabled_plugins  # Mount the plugins file
+    user: root
+    depends_on:
+      - rabbitmq1
+    healthcheck: 
+      test: ["CMD", "nc", "-z", "localhost", "5672"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+
+  rabbitmq3:
+    image: rabbitmq:3-management-alpine
+    container_name: rabbitmq3
+    networks:
+      - my-network
+    ports:
+      - "5674:5672"       # AMQP protocol
+      - "15674:15672"     # Management UI (for monitoring)
+    environment:
+      - RABBITMQ_DEFAULT_USER=user
+      - RABBITMQ_DEFAULT_PASS=password
+      - RABBITMQ_DEFAULT_VHOST=/
+      - RABBITMQ_LISTENER_TCP_BACKLOG=128  # Increase connection limit
+      - RABBITMQ_NODENAME=rabbit@rabbitmq3
+      - RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS=-setcookie secret_cookie
+      - RABBITMQ_ENABLED_PLUGINS_FILE=/etc/rabbitmq/enabled_plugins  # Set the plugins file
+      - RABBITMQ_CLUSTER_NODES=rabbit@rabbitmq1
+    volumes:
+      - rabbitmq-logs:/var/lib/rabbitmq
+      - ./rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
+      - ./.erlang.cookie:/var/lib/rabbitmq/.erlang.cookie
+      - ./enabled_plugins:/etc/rabbitmq/enabled_plugins  # Mount the plugins file
+    user: root
+    depends_on:
+      - rabbitmq1
     healthcheck: 
       test: ["CMD", "nc", "-z", "localhost", "5672"]
       interval: 10s
@@ -41,14 +112,14 @@ services:
       dockerfile: producer/Dockerfile
     container_name: producer
     depends_on:
-      rabbitmq:
+      rabbitmq1:
         condition: service_healthy  # Wait for RabbitMQ to be ready
     networks:
       - my-network
     ports:
       - "6000:5000"  # Flask app exposed on port 6000
     environment:
-      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_HOST=rabbitmq1
       - RABBITMQ_USER=user
       - RABBITMQ_PASSWORD=password
     volumes:
@@ -61,12 +132,12 @@ services:
       dockerfile: consumers/Finance/Dockerfile
     container_name: finance_consumer
     depends_on:
-      rabbitmq:
+      rabbitmq1:
         condition: service_healthy
     networks:
       - my-network
     environment:
-      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_HOST=rabbitmq1
       - RABBITMQ_USER=user
       - RABBITMQ_PASSWORD=password
       - QUEUE_NAME=finance_queue  # Finance queue binding
@@ -80,12 +151,12 @@ services:
       dockerfile: consumers/Hr/Dockerfile
     container_name: hr_consumer
     depends_on:
-      rabbitmq:
+      rabbitmq1:
         condition: service_healthy
     networks:
       - my-network
     environment:
-      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_HOST=rabbitmq1
       - RABBITMQ_USER=user
       - RABBITMQ_PASSWORD=password
       - QUEUE_NAME=hr_queue  # HR queue binding
