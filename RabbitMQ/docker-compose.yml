@@ -1,0 +1,69 @@
+version: '3.8'
+
+services:
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: rabbitmq
+    networks:
+      - my-network
+    ports:
+      - "5672:5672"       # AMQP protocol
+      - "15672:15672"     # Management UI (for monitoring)
+    environment:
+      - RABBITMQ_DEFAULT_USER=user
+      - RABBITMQ_DEFAULT_PASS=password
+      - RABBITMQ_DEFAULT_VHOST=/
+      - RABBITMQ_LISTENER_TCP_BACKLOG=128  # Optional: Increase the connection limit
+      - RABBITMQ_NODENAME=rabbit@rabbitmq  # Ensures proper node name resolution in Docker network
+      - RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS=-setcookie secret_cookie  # Optional: For setting up a secure cookie
+    volumes:
+      - rabbitmq-logs:/var/lib/rabbitmq  # Mount RabbitMQ logs directory
+    user: root  # Ensure RabbitMQ runs as root
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+
+  sender:
+    build:
+      context: .
+      dockerfile: sender/Dockerfile
+    container_name: sender
+    depends_on:
+      - rabbitmq
+    networks:
+      - my-network
+    ports:
+      - "6000:5000"  # Expose the Flask app at port 6000
+    environment:
+      - RABBITMQ_HOST=rabbitmq   # Set RabbitMQ host explicitly for sender
+      - RABBITMQ_USER=user
+      - RABBITMQ_PASSWORD=password
+    volumes:
+      - sender-app:/app  # Mount sender app directory
+
+  consumer:
+    build:
+      context: .
+      dockerfile: consumer/Dockerfile
+    container_name: consumer
+    depends_on:
+      - rabbitmq
+    networks:
+      - my-network
+    environment:
+      - RABBITMQ_HOST=rabbitmq   # Set RabbitMQ host explicitly for consumer
+      - RABBITMQ_USER=user
+      - RABBITMQ_PASSWORD=password
+    volumes:
+      - consumer-app:/app  # Mount consumer app directory
+
+networks:
+  my-network:
+    driver: bridge
+
+volumes:
+  rabbitmq-logs:     # External volume for RabbitMQ logs
+  sender-app:        # Volume for sender app files
+  consumer-app:      # Volume for consumer app files
