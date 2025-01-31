@@ -16,10 +16,12 @@ services:
       - RABBITMQ_LISTENER_TCP_BACKLOG=128  # Increase connection limit
       - RABBITMQ_NODENAME=rabbit@rabbitmq
       - RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS=-setcookie secret_cookie
+      - RABBITMQ_ENABLED_PLUGINS_FILE=/etc/rabbitmq/enabled_plugins  # Set the plugins file
     volumes:
       - rabbitmq-logs:/var/lib/rabbitmq
       - ./rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
       - ./.erlang.cookie:/var/lib/rabbitmq/.erlang.cookie
+      - ./enabled_plugins:/etc/rabbitmq/enabled_plugins  # Mount the plugins file
 
     user: root
     healthcheck: 

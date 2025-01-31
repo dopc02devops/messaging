@@ -1,5 +1,7 @@
 pip install -r requirements.txt
-
+echo "[rabbitmq_management, rabbitmq_mqtt, rabbitmq_web_dispatch, rabbitmq_management_agent].
+" > enabled_plugins
+sudo chmod 777 enabled_plugins
 
 Send a message:
 
