@@ -14,4 +14,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Set the default command to run your Python script (this will be overridden by docker-compose.yml)
-CMD ["python", "producer.py"]  # Default to the producer
+CMD ["python", "producer.py"]
