@@ -1,42 +1,61 @@
-from kafka import KafkaProducer
-import time
+from kafka import KafkaConsumer
+from prometheus_client import start_http_server, Counter, Summary, Gauge
 import json
+import time
+import psutil
 
 # Kafka configuration
-KAFKA_SERVER = 'kafka:29092'
+KAFKA_SERVER = 'kafka:29092'  # For Docker container communication, use kafka:29092
 TOPIC_NAME = 'test-topic'
 
-# Create a Kafka Producer with retry settings
+# Prometheus metrics
+messages_consumed = Counter('kafka_consumer_messages_total', 'Total number of messages consumed')
+message_processing_duration = Summary('kafka_consumer_duration_seconds', 'Time taken to process a message')
+
+# New Prometheus metrics for CPU and memory
+cpu_usage = Gauge('consumer_cpu_usage', 'CPU usage of the consumer service (%)')
+memory_usage = Gauge('consumer_memory_usage', 'Memory usage of the consumer service (bytes)')
+
+# Create a Kafka Consumer for payroll
+consumer = KafkaConsumer(
+    TOPIC_NAME,
+    bootstrap_servers=[KAFKA_SERVER],
+    value_deserializer=lambda x: json.loads(x.decode('utf-8')),
+    auto_offset_reset='earliest',  # Start reading from the earliest message
+    group_id='payroll-group',  # Unique group ID for payroll
+    enable_auto_commit=False,  # Disable auto commit to manually commit offsets
+    consumer_timeout_ms=1000,  # Timeout after 1 second of no messages
+    session_timeout_ms=30000,  # Consumer session timeout
+    heartbeat_interval_ms=5000,  # Heartbeat interval
+    max_poll_interval_ms=600000,  # Max time between poll calls (10 minutes)
+)
+
+# Start the Prometheus HTTP server to expose metrics
+start_http_server(8001)  # Exposing metrics on port 8001
+
+# Consume messages
 try:
-    producer = KafkaProducer(
-        bootstrap_servers=[KAFKA_SERVER],
-        value_serializer=lambda v: json.dumps(v).encode('utf-8'),
-        acks='all',  # Wait for acknowledgment from all replicas
-        retries=5,  # Retry up to 5 times in case of failure
-        max_in_flight_requests_per_connection=5  # Control how many requests Kafka can handle at once
-    )
-    print(f"Producer connected to {KAFKA_SERVER}")
+    while True:
+        start_time = time.time()  # Start timer for message processing time
+        
+        # Consume message
+        message = next(consumer)  # Blocking call, gets the next message
+        
+        print(f"Payroll Consumer - Consumed: {message.value}")
+        
+        # Measure the duration it took to process the message
+        message_processing_duration.observe(time.time() - start_time)
+        
+        # Increment the message consumed counter
+        messages_consumed.inc()
+        
+        # Manually commit the offset after processing the message
+        consumer.commit()
+        
+        # Update CPU and memory usage metrics
+        cpu_usage.set(psutil.cpu_percent())  # Get CPU usage percentage
+        memory_usage.set(psutil.virtual_memory().used)  # Get memory usage in bytes
 except Exception as e:
-    print(f"Error while connecting to Kafka: {e}")
-    exit(1)
-
-# Produce messages
-try:
-    for i in range(5):
-        message = {"message": f"Message {i}"}
-        # Sending message asynchronously with a callback for confirmation
-        future = producer.send(TOPIC_NAME, value=message)
-        # Block until the message is sent and get the result
-        result = future.get(timeout=60)  # Adjust the timeout as needed
-        print(f"Produced: {message}")
-        time.sleep(1)
-
-    # Wait for all messages to be sent
-    producer.flush()
-    print("All messages produced successfully.")
-
-except Exception as e:
-    print(f"Error while producing messages: {e}")
+    print(f"Error while consuming messages: {e}")
 finally:
-    # Ensure the producer is properly closed
-    producer.close()
+    consumer.close()
