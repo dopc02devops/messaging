@@ -66,7 +66,7 @@ def generate_customer_transaction():
 # Start Prometheus HTTP server
 start_http_server(8000)
 
-# Produce messages
+# Produce messages with partition logic
 try:
     while True:
         start_time = time.time()
@@ -74,9 +74,14 @@ try:
         # Create bank transaction message
         message = generate_customer_transaction()
         
+        # Use transaction_type to determine partition (0 for "Deposit", 1 for others)
+        partition_key = message["transaction_type"]
+        partition = 0 if partition_key == "Deposit" else 1
+        
         try:
-            # Send the message to Kafka and wait for confirmation
-            producer.send(TOPIC_NAME, value=message).get(timeout=10)  # Wait for confirmation or timeout after 10 seconds
+            # Send the message to Kafka and specify partition explicitly
+            # Fixing the error by using key parameter instead of partition
+            producer.send(TOPIC_NAME, value=message, key=str(partition).encode('utf-8')).get(timeout=10)  # Wait for confirmation or timeout after 10 seconds
             
             # Print message only after it's successfully sent
             print(f"✅ Producer - Sent: {json.dumps(message, indent=2)}")

@@ -1,9 +1,9 @@
-from kafka import KafkaConsumer
+from kafka import KafkaConsumer, TopicPartition
 from prometheus_client import start_http_server, Counter, Summary, Gauge
 import json
 import time
 import logging
-import psutil 
+import psutil  # Using psutil for CPU and memory usage
 
 # Enable logging
 logging.basicConfig(level=logging.INFO)
@@ -22,7 +22,6 @@ TOPIC_NAME = 'test-topic'
 
 # Create a Kafka Consumer for security
 consumer = KafkaConsumer(
-    TOPIC_NAME,
     bootstrap_servers=[KAFKA_SERVER],
     value_deserializer=lambda x: json.loads(x.decode('utf-8')),  # Deserialize JSON
     auto_offset_reset='earliest',  # Start reading from the earliest message
@@ -33,6 +32,10 @@ consumer = KafkaConsumer(
     heartbeat_interval_ms=5000,  # Heartbeat interval
     max_poll_interval_ms=600000,  # Max time between poll calls (10 minutes)
 )
+
+# Assign the consumer to partition 1 of the topic
+partition = TopicPartition(TOPIC_NAME, 1)
+consumer.assign([partition])
 
 # Function to get CPU usage percentage using psutil
 def get_cpu_usage():
