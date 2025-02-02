@@ -3,10 +3,10 @@ from prometheus_client import start_http_server, Counter, Summary, Gauge
 import json
 import time
 import logging
-import psutil  # Using psutil for CPU and memory usage
+import psutil 
 
 # Enable logging
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 
 # Prometheus metrics
 messages_consumed = Counter('kafka_consumer_messages_total', 'Total number of messages consumed')
@@ -20,13 +20,13 @@ memory_usage = Gauge('consumer_memory_usage', 'Memory usage of the consumer serv
 KAFKA_SERVER = 'kafka:29092'  # For Docker container communication, use kafka:29092
 TOPIC_NAME = 'test-topic'
 
-# Create a Kafka Consumer for payroll
+# Create a Kafka Consumer for security
 consumer = KafkaConsumer(
     TOPIC_NAME,
     bootstrap_servers=[KAFKA_SERVER],
     value_deserializer=lambda x: json.loads(x.decode('utf-8')),  # Deserialize JSON
     auto_offset_reset='earliest',  # Start reading from the earliest message
-    group_id='payroll-group',  # Unique group ID for payroll
+    group_id='security-group',  # Unique group ID for security
     enable_auto_commit=False,  # Disable auto commit to manually commit offsets
     consumer_timeout_ms=1000,  # Timeout after 1 second of no messages
     session_timeout_ms=30000,  # Consumer session timeout
@@ -43,7 +43,7 @@ def get_memory_usage():
     return psutil.virtual_memory().used
 
 # Start the Prometheus HTTP server to expose metrics
-start_http_server(8001)  # Exposing metrics on port 8001
+start_http_server(8002)  # Exposing metrics on port 8002
 
 # Consume messages
 try:

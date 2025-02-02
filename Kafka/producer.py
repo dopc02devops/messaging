@@ -8,7 +8,7 @@ import random
 from faker import Faker
 
 # Enable logging
-logging.basicConfig(level=logging.info)
+logging.basicConfig(level=logging.INFO)
 
 # Prometheus metrics
 messages_produced = Counter('kafka_producer_messages_total', 'Total number of messages produced')
@@ -77,6 +77,8 @@ try:
         try:
             # Send the message to Kafka and wait for confirmation
             producer.send(TOPIC_NAME, value=message).get(timeout=10)  # Wait for confirmation or timeout after 10 seconds
+            
+            # Print message only after it's successfully sent
             print(f"✅ Producer - Sent: {json.dumps(message, indent=2)}")
         except Exception as e:
             logging.error(f"❌ Failed to send message: {e}")

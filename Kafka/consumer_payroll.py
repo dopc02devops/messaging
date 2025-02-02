@@ -6,7 +6,7 @@ import logging
 import psutil  # Using psutil for CPU and memory usage
 
 # Enable logging
-logging.basicConfig(level=logging.info)
+logging.basicConfig(level=logging.INFO)
 
 # Prometheus metrics
 messages_consumed = Counter('kafka_consumer_messages_total', 'Total number of messages consumed')
